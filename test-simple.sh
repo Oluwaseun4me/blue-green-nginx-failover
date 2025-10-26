@@ -32,7 +32,7 @@ echo "🔵 Testing Baseline Routing (Should be Blue)"
 echo "============================================"
 for i in {1..5}; do
     echo -n "Request $i: "
-    curl -s http://localhost:8090/version 2>/dev/null | grep -o '"pool":"[^"]*' | cut -d'"' -f4 || echo "unavailable"
+    curl -s http://localhost:8080/version 2>/dev/null | grep -o '"pool":"[^"]*' | cut -d'"' -f4 || echo "unavailable"
     sleep 1
 done
 
@@ -48,8 +48,8 @@ curl -s http://localhost:8082/healthz 2>/dev/null || echo "unavailable"
 echo ""
 echo "📝 Testing Headers"
 echo "=================="
-echo "Through Nginx (port 8090):"
-curl -I -s http://localhost:8090/version 2>/dev/null | grep -i "x-app-pool\|x-release-id" || echo "No headers"
+echo "Through Nginx (port 8080):"
+curl -I -s http://localhost:8080/version 2>/dev/null | grep -i "x-app-pool\|x-release-id" || echo "No headers"
 
 echo ""
 echo "Direct to Blue (port 8081):"
@@ -70,6 +70,6 @@ curl -s -X POST http://localhost:8082/chaos/start 2>/dev/null || echo "unavailab
 
 echo ""
 echo "✅ Basic setup complete!"
-echo "   Nginx:  http://localhost:8090"
+echo "   Nginx:  http://localhost:8080"
 echo "   Blue:   http://localhost:8081"
 echo "   Green:  http://localhost:8082"
