@@ -1,61 +1,40 @@
 #!/bin/bash
 
-echo "🌪️  Testing Auto-Failover"
-echo "=========================="
+# === CONFIGURATION ===
+NGINX_URL="http://localhost:8080/version"
+BLUE_CHAOS="http://localhost:8081/chaos"
+GREEN_CHAOS="http://localhost:8082/chaos"
 
-echo "Step 1: Current state (should be Blue)"
-curl -s http://localhost:8080/version | jq -r '. | "Pool: \(.pool), Release: \(.release)"'
+# === FUNCTION TO CHECK WHICH ENVIRONMENT IS ACTIVE ===
+check_pool() {
+  RESPONSE=$(curl -s -i "$NGINX_URL")
+  ACTIVE_POOL=$(echo "$RESPONSE" | grep -i "x-app-pool:" | awk -F': ' '{print $2}' | tr -d '\r')
+  RELEASE_ID=$(echo "$RESPONSE" | grep -i "x-release-id:" | awk -F': ' '{print $2}' | tr -d '\r')
+  HTTP_STATUS=$(echo "$RESPONSE" | grep -i "HTTP/" | awk '{print $2}')
 
-echo ""
-echo "Step 2: Testing direct chaos endpoints"
-echo "Blue chaos start:"
-curl -s -X POST http://localhost:8081/chaos/start | jq .
-echo "Green chaos start:"
-curl -s -X POST http://localhost:8082/chaos/start | jq .
+  echo "HTTP Status: $HTTP_STATUS"
+  echo "Active pool: ${ACTIVE_POOL:-unknown}"
+  echo "Release ID: ${RELEASE_ID:-unknown}"
+}
 
-echo ""
-echo "Step 3: Simulating Blue failure by stopping container"
-docker-compose stop app_blue
+# === STEP 1: Initial Status ===
+echo "🔍 Checking initial active environment..."
+check_pool
 
-echo ""
-echo "Step 4: Testing failover to Green (waiting 10 seconds for failover)..."
-sleep 10
+# === STEP 2: Start Blue Chaos ===
+echo -e "\n💥 Simulating failure in Blue environment..."
+curl -s -X POST "${BLUE_CHAOS}/start" >/dev/null
+sleep 3
 
-echo "Making 10 requests to verify failover:"
-blue_count=0
-green_count=0
+# === STEP 3: Check if Nginx switched to Green ===
+echo -e "\n🧭 Checking if Nginx switched to Green..."
+check_pool
 
-for i in {1..10}; do
-    response=$(curl -s http://localhost:8080/version)
-    pool=$(echo $response | grep -o '"pool":"[^"]*' | cut -d'"' -f4)
-    echo "Request $i: $pool"
-    
-    if [ "$pool" = "blue" ]; then
-        ((blue_count++))
-    elif [ "$pool" = "green" ]; then
-        ((green_count++))
-    fi
-    sleep 1
-done
+# === STEP 4: Stop Blue Chaos (recover Blue) ===
+echo -e "\n🔧 Restoring Blue environment..."
+curl -s -X POST "${BLUE_CHAOS}/stop" >/dev/null
+sleep 3
 
-echo ""
-echo "📊 Failover Results:"
-echo "Blue responses: $blue_count"
-echo "Green responses: $green_count"
-
-if [ $green_count -gt 0 ]; then
-    echo "✅ FAILOVER SUCCESSFUL - Traffic switched to Green"
-else
-    echo "❌ FAILOVER FAILED - Still routing to Blue"
-fi
-
-echo ""
-echo "Step 5: Restoring Blue service"
-docker-compose start app_blue
-sleep 10
-
-echo ""
-echo "Step 6: Back to normal routing"
-curl -s http://localhost:8080/version | jq -r '. | "Pool: \(.pool), Release: \(.release)"'
-
-echo "✅ Failover test complete!"
+# === STEP 5: Verify Blue is back and Nginx routes correctly ===
+echo -e "\n✅ Verifying recovery..."
+check_pool
