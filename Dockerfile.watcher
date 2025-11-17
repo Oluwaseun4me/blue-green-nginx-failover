@@ -1,0 +1,12 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install requests
+
+# Copy the watcher script
+COPY watcher.py .
+
+# Run the watcher
+CMD ["python", "watcher.py"]

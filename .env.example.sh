@@ -1,5 +1,13 @@
-BLUE_IMAGE=my-blue-app
-GREEN_IMAGE=my-green-app
+# Stage 2 Variables
+BLUE_IMAGE=oluwaseun4me/blue-server:latest
+GREEN_IMAGE=oluwaseun4me/green-server:latest
+ACTIVE_POOL=blue
 RELEASE_ID_BLUE=blue-1.0.0
 RELEASE_ID_GREEN=green-2.0.0
-ACTIVE_POOL=blue
+APP_PORT=3000
+
+# Stage 3 Observability Variables
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/your/webhook/here
+ERROR_RATE_THRESHOLD=2.0
+WINDOW_SIZE=200
+ALERT_COOLDOWN_SEC=300
